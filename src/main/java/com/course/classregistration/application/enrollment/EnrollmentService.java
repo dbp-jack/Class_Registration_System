@@ -12,11 +12,16 @@ import com.course.classregistration.global.exception.BusinessException;
 import com.course.classregistration.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -149,17 +154,31 @@ public class EnrollmentService {
     /**
      * 내 수강 신청 목록 페이지네이션 조회
      *
-     * TODO: N+1 문제 존재 - 각 Enrollment마다 Course 조회 쿼리 발생
-     *       Phase 6 리팩토링에서 JPQL fetch join으로 개선 예정
+     * [N+1 해결]
+     * 기존: Enrollment 목록 조회(1) + 각 Enrollment마다 Course 조회(N) = N+1 쿼리
+     * 개선: Enrollment 목록 조회(1) + courseId IN 절로 Course 일괄 조회(1) = 2 쿼리
+     *
+     * Enrollment가 courseId를 Long 타입으로 보유(연관관계 미설정)하므로
+     * JOIN FETCH 대신 배치 ID 조회 방식으로 해결.
      */
     public PageResponse<EnrollmentResponse> getMyEnrollments(Long userId, Pageable pageable) {
+        Page<Enrollment> enrollments = enrollmentRepository.findByUserIdAndStatus(
+                userId, EnrollmentStatus.ENROLLED, pageable);
+
+        // courseId 목록으로 Course 일괄 조회 (단 1번의 IN 쿼리)
+        Set<Long> courseIds = enrollments.getContent().stream()
+                .map(Enrollment::getCourseId)
+                .collect(Collectors.toSet());
+
+        Map<Long, Course> courseMap = courseRepository.findAllByIds(courseIds).stream()
+                .collect(Collectors.toMap(Course::getId, c -> c));
+
         return PageResponse.from(
-                enrollmentRepository.findByUserIdAndStatus(userId, EnrollmentStatus.ENROLLED, pageable)
-                        .map(enrollment -> {
-                            Course course = courseRepository.findById(enrollment.getCourseId())
-                                    .orElseThrow(() -> new BusinessException(ErrorCode.COURSE_NOT_FOUND));
-                            return EnrollmentResponse.from(enrollment, course);
-                        })
+                enrollments.map(enrollment -> {
+                    Course course = Optional.ofNullable(courseMap.get(enrollment.getCourseId()))
+                            .orElseThrow(() -> new BusinessException(ErrorCode.COURSE_NOT_FOUND));
+                    return EnrollmentResponse.from(enrollment, course);
+                })
         );
     }
 }
