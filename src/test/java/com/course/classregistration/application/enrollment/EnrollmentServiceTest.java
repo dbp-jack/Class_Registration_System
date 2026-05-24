@@ -66,6 +66,8 @@ class EnrollmentServiceTest {
         given(courseRepository.findByIdWithLock(COURSE_ID)).willReturn(Optional.of(course));
         given(enrollmentRepository.existsByCourseIdAndUserIdAndStatus(COURSE_ID, USER_ID, EnrollmentStatus.ENROLLED))
                 .willReturn(false);
+        given(enrollmentRepository.existsByCourseIdAndUserIdAndStatus(COURSE_ID, USER_ID, EnrollmentStatus.WAITLISTED))
+                .willReturn(false);
         given(enrollmentRepository.save(any(Enrollment.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
 
@@ -110,8 +112,26 @@ class EnrollmentServiceTest {
     }
 
     @Test
-    @DisplayName("수강 신청 실패 - 정원이 가득 찬 강좌 신청 시 COURSE_FULL 예외")
-    void enroll_courseFull() {
+    @DisplayName("수강 신청 실패 - 이미 대기열에 있는 강좌 재신청 시 ALREADY_ENROLLED 예외")
+    void enroll_alreadyWaitlisted() {
+        // given
+        given(courseRepository.findByIdWithLock(COURSE_ID)).willReturn(Optional.of(course));
+        given(enrollmentRepository.existsByCourseIdAndUserIdAndStatus(COURSE_ID, USER_ID, EnrollmentStatus.ENROLLED))
+                .willReturn(false);
+        given(enrollmentRepository.existsByCourseIdAndUserIdAndStatus(COURSE_ID, USER_ID, EnrollmentStatus.WAITLISTED))
+                .willReturn(true);
+
+        // when & then
+        assertThatThrownBy(() -> enrollmentService.enroll(USER_ID, request))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.ALREADY_ENROLLED));
+        verify(enrollmentRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("수강 신청 - 정원이 가득 찬 강좌 신청 시 대기열(WAITLISTED)에 등록된다")
+    void enroll_waitlisted_whenFull() {
         // given
         Course fullCourse = Course.create("정원 초과 강좌", "박강사", 1, null, null, 1L);
         fullCourse.increaseEnrollmentCount(); // 정원 1명 → 이미 1명 신청됨
@@ -119,12 +139,18 @@ class EnrollmentServiceTest {
         given(courseRepository.findByIdWithLock(COURSE_ID)).willReturn(Optional.of(fullCourse));
         given(enrollmentRepository.existsByCourseIdAndUserIdAndStatus(COURSE_ID, USER_ID, EnrollmentStatus.ENROLLED))
                 .willReturn(false);
+        given(enrollmentRepository.existsByCourseIdAndUserIdAndStatus(COURSE_ID, USER_ID, EnrollmentStatus.WAITLISTED))
+                .willReturn(false);
+        given(enrollmentRepository.save(any(Enrollment.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
 
-        // when & then
-        assertThatThrownBy(() -> enrollmentService.enroll(USER_ID, request))
-                .isInstanceOf(BusinessException.class)
-                .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
-                        .isEqualTo(ErrorCode.COURSE_FULL));
+        // when
+        EnrollmentResponse response = enrollmentService.enroll(USER_ID, request);
+
+        // then
+        assertThat(response.getStatus()).isEqualTo(EnrollmentStatus.WAITLISTED);
+        assertThat(fullCourse.getCurrentEnrollmentCount()).isEqualTo(1); // 카운터 변경 없음
+        verify(enrollmentRepository, times(1)).save(any(Enrollment.class));
     }
 
     // ── cancel ────────────────────────────────────────────────────────────────
@@ -139,6 +165,7 @@ class EnrollmentServiceTest {
 
         given(enrollmentRepository.findById(1L)).willReturn(Optional.of(enrollment));
         given(courseRepository.findByIdWithLock(COURSE_ID)).willReturn(Optional.of(course));
+        given(enrollmentRepository.findFirstWaitlistedByCourseId(COURSE_ID)).willReturn(Optional.empty());
         course.increaseEnrollmentCount();
 
         // when
@@ -147,6 +174,70 @@ class EnrollmentServiceTest {
         // then
         assertThat(enrollment.isCancelled()).isTrue();
         assertThat(course.getCurrentEnrollmentCount()).isZero();
+    }
+
+    @Test
+    @DisplayName("수강 취소 성공 - ENROLLED 취소 시 대기열 첫 번째 학생이 자동 승급된다")
+    void cancel_enrolled_promotesWaitlisted() {
+        // given
+        course.increaseEnrollmentCount(); // 현재 1명 수강 중
+
+        Enrollment enrollment = Enrollment.create(COURSE_ID, USER_ID);
+        ReflectionTestUtils.setField(enrollment, "createdAt", LocalDateTime.now().minusHours(1));
+
+        Enrollment waitlisted = Enrollment.createWaitlisted(COURSE_ID, 200L);
+
+        given(enrollmentRepository.findById(1L)).willReturn(Optional.of(enrollment));
+        given(courseRepository.findByIdWithLock(COURSE_ID)).willReturn(Optional.of(course));
+        given(enrollmentRepository.findFirstWaitlistedByCourseId(COURSE_ID)).willReturn(Optional.of(waitlisted));
+
+        // when
+        enrollmentService.cancel(USER_ID, 1L);
+
+        // then
+        assertThat(enrollment.isCancelled()).isTrue();
+        assertThat(waitlisted.isEnrolled()).isTrue();          // 대기열 → ENROLLED 승급
+        assertThat(course.getCurrentEnrollmentCount()).isEqualTo(1); // 감소 후 승급 → 원상복구
+    }
+
+    @Test
+    @DisplayName("수강 취소 성공 - ENROLLED 취소 시 대기열이 없으면 승급 없이 카운터만 감소한다")
+    void cancel_enrolled_noWaitlist() {
+        // given
+        course.increaseEnrollmentCount();
+
+        Enrollment enrollment = Enrollment.create(COURSE_ID, USER_ID);
+        ReflectionTestUtils.setField(enrollment, "createdAt", LocalDateTime.now().minusHours(1));
+
+        given(enrollmentRepository.findById(1L)).willReturn(Optional.of(enrollment));
+        given(courseRepository.findByIdWithLock(COURSE_ID)).willReturn(Optional.of(course));
+        given(enrollmentRepository.findFirstWaitlistedByCourseId(COURSE_ID)).willReturn(Optional.empty());
+
+        // when
+        enrollmentService.cancel(USER_ID, 1L);
+
+        // then
+        assertThat(enrollment.isCancelled()).isTrue();
+        assertThat(course.getCurrentEnrollmentCount()).isZero(); // 승급 없으므로 0
+    }
+
+    @Test
+    @DisplayName("대기열 취소 성공 - WAITLISTED 취소는 기간 제한 없이 즉시 취소된다")
+    void cancel_waitlisted_success() {
+        // given
+        // createdAt을 25시간 전으로 설정 (ENROLLED라면 취소 불가 기간)
+        Enrollment waitlisted = Enrollment.createWaitlisted(COURSE_ID, USER_ID);
+        ReflectionTestUtils.setField(waitlisted, "createdAt", LocalDateTime.now().minusHours(25));
+
+        given(enrollmentRepository.findById(1L)).willReturn(Optional.of(waitlisted));
+
+        // when
+        enrollmentService.cancel(USER_ID, 1L);
+
+        // then
+        assertThat(waitlisted.isCancelled()).isTrue();
+        // 대기열은 카운터에 영향이 없으므로 강좌 조회도 하지 않아야 함
+        verify(courseRepository, never()).findByIdWithLock(any());
     }
 
     @Test

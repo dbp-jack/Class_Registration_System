@@ -37,4 +37,13 @@ public interface EnrollmentRepository {
      * 수강생 목록 조회에 사용
      */
     List<Enrollment> findByCourseIdAndStatus(Long courseId, EnrollmentStatus status);
+
+    /**
+     * 대기열 선두 학생 1명 조회 (비관적 락 + SKIP LOCKED)
+     *
+     * - ORDER BY created_at ASC, id ASC: 밀리초 단위 동시 등록 시 id(AUTO_INCREMENT)로 공정한 선착순 보장
+     * - SKIP LOCKED: 이미 다른 트랜잭션이 처리 중인 행은 건너뜀
+     *   → 동시 취소가 발생해도 중복 승급 방지
+     */
+    Optional<Enrollment> findFirstWaitlistedByCourseId(Long courseId);
 }

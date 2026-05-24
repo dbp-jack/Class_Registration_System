@@ -12,6 +12,7 @@ import org.springframework.data.domain.Pageable;
 import java.util.List;
 import java.util.Optional;
 
+
 @Repository
 @RequiredArgsConstructor
 public class EnrollmentRepositoryImpl implements EnrollmentRepository {
@@ -46,5 +47,10 @@ public class EnrollmentRepositoryImpl implements EnrollmentRepository {
     @Override
     public List<Enrollment> findByCourseIdAndStatus(Long courseId, EnrollmentStatus status) {
         return enrollmentJpaRepository.findByCourseIdAndStatus(courseId, status);
+    }
+
+    @Override
+    public Optional<Enrollment> findFirstWaitlistedByCourseId(Long courseId) {
+        return enrollmentJpaRepository.findFirstWaitlistedByCourseId(courseId);
     }
 }

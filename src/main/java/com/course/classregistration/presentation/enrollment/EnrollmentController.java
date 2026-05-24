@@ -3,6 +3,7 @@ package com.course.classregistration.presentation.enrollment;
 import com.course.classregistration.application.enrollment.EnrollmentService;
 import com.course.classregistration.application.enrollment.dto.EnrollmentRequest;
 import com.course.classregistration.application.enrollment.dto.EnrollmentResponse;
+import com.course.classregistration.domain.enrollment.EnrollmentStatus;
 import com.course.classregistration.global.common.ApiResponse;
 import com.course.classregistration.global.common.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,15 +29,22 @@ public class EnrollmentController {
      * 수강 신청
      * POST /api/enrollments
      * Header: X-User-Id (수강 신청자 ID)
+     *
+     * 정원 여유 → 201 "수강 신청이 완료되었습니다." (status: ENROLLED)
+     * 정원 초과 → 201 "대기열에 등록되었습니다."   (status: WAITLISTED)
      */
     @PostMapping
-    @Operation(summary = "수강 신청", description = "X-User-Id 헤더의 사용자로 강좌를 수강 신청합니다.")
+    @Operation(summary = "수강 신청",
+            description = "X-User-Id 헤더의 사용자로 강좌를 수강 신청합니다. 정원 초과 시 대기열에 등록됩니다.")
     public ResponseEntity<ApiResponse<EnrollmentResponse>> enroll(
             @RequestHeader("X-User-Id") Long userId,
             @Valid @RequestBody EnrollmentRequest request) {
         EnrollmentResponse response = enrollmentService.enroll(userId, request);
+        String message = response.getStatus() == EnrollmentStatus.WAITLISTED
+                ? "대기열에 등록되었습니다."
+                : "수강 신청이 완료되었습니다.";
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.ok("수강 신청이 완료되었습니다.", response));
+                .body(ApiResponse.ok(message, response));
     }
 
     /**
