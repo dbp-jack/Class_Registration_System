@@ -25,6 +25,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -52,6 +53,8 @@ class EnrollmentServiceTest {
     @BeforeEach
     void setUp() {
         course = Course.create("스프링 부트 입문", "김강사", 30, null, null, 1L);
+        // 단위 테스트에서는 DB 저장이 없으므로 id를 직접 주입
+        ReflectionTestUtils.setField(course, "id", COURSE_ID);
         request = EnrollmentRequest.builder().courseId(COURSE_ID).build();
         // cancelPeriodHours 기본값 주입 (application.yaml 없이 단위 테스트 실행)
         ReflectionTestUtils.setField(enrollmentService, "cancelPeriodHours", 24);
@@ -291,14 +294,16 @@ class EnrollmentServiceTest {
     // ── getMyEnrollments ──────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("내 수강 신청 목록 페이지네이션 조회 - 수강 중인 목록만 PageResponse로 반환한다")
+    @DisplayName("내 수강 신청 목록 조회 - courseId 배치 조회로 N+1 없이 PageResponse를 반환한다")
     void getMyEnrollments_success() {
         // given
         Pageable pageable = PageRequest.of(0, 10);
         Enrollment enrollment = Enrollment.create(COURSE_ID, USER_ID);
         given(enrollmentRepository.findByUserIdAndStatus(USER_ID, EnrollmentStatus.ENROLLED, pageable))
                 .willReturn(new PageImpl<>(List.of(enrollment), pageable, 1));
-        given(courseRepository.findById(COURSE_ID)).willReturn(Optional.of(course));
+        // 기존: findById(COURSE_ID) → N번 호출
+        // 개선: findAllByIds(Set) → 1번 호출
+        given(courseRepository.findAllByIds(Set.of(COURSE_ID))).willReturn(List.of(course));
 
         // when
         PageResponse<EnrollmentResponse> response = enrollmentService.getMyEnrollments(USER_ID, pageable);
@@ -308,5 +313,7 @@ class EnrollmentServiceTest {
         assertThat(response.getTotalElements()).isEqualTo(1);
         assertThat(response.getContent().get(0).getCourseTitle()).isEqualTo("스프링 부트 입문");
         assertThat(response.getContent().get(0).getStatus()).isEqualTo(EnrollmentStatus.ENROLLED);
+        // findById가 호출되지 않음을 검증 (N+1 제거 확인)
+        verify(courseRepository, never()).findById(any());
     }
 }
