@@ -1,0 +1,32 @@
+package com.course.classregistration.domain.enrollment;
+
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * Enrollment 도메인 리포지토리 인터페이스 (DIP)
+ * 구현체는 infrastructure 레이어에 위치
+ */
+public interface EnrollmentRepository {
+
+    Enrollment save(Enrollment enrollment);
+
+    Optional<Enrollment> findById(Long id);
+
+    /**
+     * 특정 강좌에 특정 사용자의 활성 수강 신청 존재 여부 확인
+     * 중복 신청 방지에 사용
+     */
+    boolean existsByCourseIdAndUserIdAndStatus(Long courseId, Long userId, EnrollmentStatus status);
+
+    /**
+     * 특정 사용자의 수강 신청 목록 조회 (상태 필터)
+     */
+    List<Enrollment> findByUserIdAndStatus(Long userId, EnrollmentStatus status);
+
+    /**
+     * 특정 강좌의 수강 신청 목록 조회 (상태 필터)
+     * 수강생 목록 조회에 사용
+     */
+    List<Enrollment> findByCourseIdAndStatus(Long courseId, EnrollmentStatus status);
+}
