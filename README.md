@@ -18,14 +18,14 @@
 
 ## 기술 스택
 
-| 분류 | 기술 |
-|------|------|
-| Web | Spring Web MVC |
-| Persistence | Spring Data JPA / Hibernate |
-| Database | PostgreSQL 16 (Docker) |
-| Test | JUnit 5, Mockito, Testcontainers |
-| Docs | SpringDoc OpenAPI (Swagger UI) |
-| Infra | Docker Compose |
+| 분류 | 기술 | 선택 이유 |
+|------|------|-----------|
+| Web | Spring Web MVC | 표준 REST API 구현, Spring 생태계 통합 |
+| Persistence | Spring Data JPA / Hibernate | 도메인 중심 설계, 비관적 락 어노테이션 지원 |
+| Database | PostgreSQL 16 | `FOR UPDATE SKIP LOCKED` 지원 (MySQL 8.0+도 가능하나 PostgreSQL이 더 성숙) |
+| Test | JUnit 5, Mockito, Testcontainers | 단위/통합/동시성 테스트 계층 분리. H2는 SKIP LOCKED 미지원으로 배제 |
+| Docs | SpringDoc OpenAPI (Swagger UI) | 코드 기반 API 명세 자동화 |
+| Infra | Docker Compose | 로컬 PostgreSQL 환경 일관성 보장 |
 
 ---
 
@@ -68,10 +68,11 @@ enrollment:
 
 | 항목 | 해석 및 가정 |
 |------|-------------|
-| 인증 | Spring Security 미사용. `X-User-Id` 헤더로 사용자 식별 간소화 |
+| 인증 | Spring Security 미사용. `X-User-Id` 헤더로 사용자 식별 간소화 (실제 운영 시 JWT + Security Filter로 분리) |
+| 결제 플로우 | 결제 시스템 연동 없음. 수강 신청 즉시 확정(ENROLLED) 처리 — PENDING/CONFIRMED 상태 없음 |
 | 수강 신청 기간 | `enrollmentStartAt` / `enrollmentEndAt` 미설정 시 상시 신청 가능으로 처리 |
-| 정원 초과 | 예외 반환 대신 대기열(WAITLISTED) 등록으로 처리 |
-| 취소 가능 기간 | 신청 후 24시간 이내로 제한. 외부 설정값으로 관리 |
+| 정원 초과 | 예외 반환 대신 대기열(WAITLISTED) 등록으로 처리. 취소 발생 시 선착순 자동 승급 |
+| 취소 가능 기간 | 신청 후 24시간 이내로 제한. 외부 설정값(`enrollment.cancel-period-hours`)으로 관리 |
 | 개설자 식별 | 강좌 생성 시 `X-User-Id` 헤더값을 `createdBy`로 저장 |
 | User 엔티티 | 과제 범위 내 간소화 — 별도 User 테이블 없이 userId만 사용 |
 
@@ -144,7 +145,7 @@ JPA, PostgreSQL 등 구현 기술이 바뀌어도 도메인 로직은 영향을 
 | 인증/인가 | JWT + Spring Security 미적용. `X-User-Id` 헤더로 간소화 |
 | 대기열 최대 인원 | 제한 없음. `maxWaitlistCapacity` 정책 추가로 확장 가능 |
 | 승급 알림 | 구현 없음. Kafka / 이메일 이벤트 연동으로 확장 가능 |
-| N+1 문제 | `getMyEnrollments()`에서 Enrollment 건마다 Course 조회 발생. JPQL fetch join으로 개선 예정 |
+| Redis 캐시 | 미적용. 강좌 목록은 Sorted Set, 대기열은 Redis Queue로 확장 가능 |
 | 기간 이후 승급 | 수강 신청 기간 종료 후 승급 허용. `courseStartAt` 도입 시 강좌 시작 전까지로 제한 가능 |
 
 ---
