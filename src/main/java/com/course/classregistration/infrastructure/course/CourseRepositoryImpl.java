@@ -8,6 +8,8 @@ import org.springframework.stereotype.Repository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -40,5 +42,10 @@ public class CourseRepositoryImpl implements CourseRepository {
     @Override
     public Page<Course> findAll(Pageable pageable) {
         return courseJpaRepository.findAll(pageable);
+    }
+
+    @Override
+    public List<Course> findAllByIds(Collection<Long> ids) {
+        return courseJpaRepository.findAllById(ids);
     }
 }
