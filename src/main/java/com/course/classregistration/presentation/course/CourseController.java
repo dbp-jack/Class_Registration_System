@@ -3,6 +3,7 @@ package com.course.classregistration.presentation.course;
 import com.course.classregistration.application.course.CourseService;
 import com.course.classregistration.application.course.dto.CourseCreateRequest;
 import com.course.classregistration.application.course.dto.CourseResponse;
+import com.course.classregistration.application.course.dto.StudentResponse;
 import com.course.classregistration.global.common.ApiResponse;
 import com.course.classregistration.global.common.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,6 +17,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/courses")
 @RequiredArgsConstructor
@@ -27,12 +30,14 @@ public class CourseController {
     /**
      * 강좌 생성
      * POST /api/courses
+     * Header: X-User-Id (개설자 ID — 강좌 ownership 부여)
      */
     @PostMapping
-    @Operation(summary = "강좌 생성", description = "새로운 강좌를 등록합니다.")
+    @Operation(summary = "강좌 생성", description = "새로운 강좌를 등록합니다. 개설자 ID는 X-User-Id 헤더로 받습니다.")
     public ResponseEntity<ApiResponse<CourseResponse>> createCourse(
+            @RequestHeader("X-User-Id") Long userId,
             @Valid @RequestBody CourseCreateRequest request) {
-        CourseResponse response = courseService.createCourse(request);
+        CourseResponse response = courseService.createCourse(request, userId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok("강좌가 생성되었습니다.", response));
     }
@@ -57,5 +62,18 @@ public class CourseController {
     public ResponseEntity<ApiResponse<PageResponse<CourseResponse>>> getCourses(
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.ok(courseService.getCourses(pageable)));
+    }
+
+    /**
+     * 수강생 목록 조회 (개설자 전용)
+     * GET /api/courses/{courseId}/students
+     * Header: X-User-Id (개설자 본인만 접근 가능)
+     */
+    @GetMapping("/{courseId}/students")
+    @Operation(summary = "수강생 목록 조회", description = "강좌 개설자만 수강 중인 학생 목록을 조회할 수 있습니다.")
+    public ResponseEntity<ApiResponse<List<StudentResponse>>> getStudents(
+            @RequestHeader("X-User-Id") Long userId,
+            @PathVariable Long courseId) {
+        return ResponseEntity.ok(ApiResponse.ok(courseService.getStudents(courseId, userId)));
     }
 }

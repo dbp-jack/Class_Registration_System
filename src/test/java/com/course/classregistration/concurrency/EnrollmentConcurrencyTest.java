@@ -62,7 +62,7 @@ class EnrollmentConcurrencyTest {
         int concurrentUsers = 30;
 
         Course course = courseRepository.save(
-                Course.create("동시성 테스트 강좌", "테스트 강사", maxCapacity, null, null)
+                Course.create("동시성 테스트 강좌", "테스트 강사", maxCapacity, null, null, 1L)
         );
         Long courseId = course.getId();
 

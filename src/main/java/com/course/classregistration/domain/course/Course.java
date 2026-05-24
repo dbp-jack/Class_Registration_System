@@ -21,26 +21,30 @@ public class Course extends BaseEntity {
     private Long id;
 
     @Column(nullable = false)
-    private String title;           // 강좌명
+    private String title;
 
     @Column(nullable = false)
-    private String instructor;      // 강사명
+    private String instructor;
 
     @Column(nullable = false)
-    private int maxCapacity;        // 최대 수강 인원
+    private int maxCapacity;
 
     @Column(nullable = false)
-    private int currentEnrollmentCount; // 현재 수강 인원 (카운터 컬럼, 비관적 락으로 보호)
+    private int currentEnrollmentCount;
 
     @Column
-    private LocalDateTime enrollmentStartAt;  // 수강 신청 시작일
+    private LocalDateTime enrollmentStartAt;
 
     @Column
-    private LocalDateTime enrollmentEndAt;    // 수강 신청 종료일
+    private LocalDateTime enrollmentEndAt;
+
+    @Column(nullable = false)
+    private Long createdBy;
 
     // ── 정적 팩토리 메서드 ────────────────────────────────────────────────────
     public static Course create(String title, String instructor, int maxCapacity,
-                                LocalDateTime enrollmentStartAt, LocalDateTime enrollmentEndAt) {
+                                LocalDateTime enrollmentStartAt, LocalDateTime enrollmentEndAt,
+                                Long createdBy) {
         Course course = new Course();
         course.title = title;
         course.instructor = instructor;
@@ -48,6 +52,7 @@ public class Course extends BaseEntity {
         course.currentEnrollmentCount = 0;
         course.enrollmentStartAt = enrollmentStartAt;
         course.enrollmentEndAt = enrollmentEndAt;
+        course.createdBy = createdBy;
         return course;
     }
 
@@ -99,5 +104,12 @@ public class Course extends BaseEntity {
      */
     public int remainingCapacity() {
         return maxCapacity - currentEnrollmentCount;
+    }
+
+    /**
+     * 강좌 개설자 여부 확인
+     */
+    public boolean isCreatedBy(Long userId) {
+        return this.createdBy.equals(userId);
     }
 }
