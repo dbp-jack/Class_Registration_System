@@ -26,7 +26,7 @@ class CourseRepositoryTest {
     @DisplayName("강좌 저장 성공 - 저장 후 ID가 자동 생성된다")
     void save_success() {
         // given
-        Course course = Course.create("스프링 부트 입문", "김강사", 30, null, null);
+        Course course = Course.create("스프링 부트 입문", "김강사", 30, null, null, 1L);
 
         // when
         Course saved = courseJpaRepository.save(course);
@@ -41,7 +41,7 @@ class CourseRepositoryTest {
     @DisplayName("강좌 단건 조회 성공 - 저장된 강좌를 ID로 조회할 수 있다")
     void findById_success() {
         // given
-        Course course = Course.create("JPA 심화", "이강사", 20, null, null);
+        Course course = Course.create("JPA 심화", "이강사", 20, null, null, 1L);
         Course saved = courseJpaRepository.save(course);
 
         // when
@@ -57,7 +57,7 @@ class CourseRepositoryTest {
     @DisplayName("비관적 락 조회 성공 - findByIdWithLock으로 강좌를 조회할 수 있다")
     void findByIdWithLock_success() {
         // given
-        Course course = Course.create("동시성 테스트", "박강사", 50, null, null);
+        Course course = Course.create("동시성 테스트", "박강사", 50, null, null, 1L);
         Course saved = courseJpaRepository.save(course);
 
         // when
@@ -82,8 +82,8 @@ class CourseRepositoryTest {
     @DisplayName("강좌 목록 조회 - 저장된 모든 강좌를 반환한다")
     void findAll_success() {
         // given
-        courseJpaRepository.save(Course.create("강좌A", "강사A", 10, null, null));
-        courseJpaRepository.save(Course.create("강좌B", "강사B", 20, null, null));
+        courseJpaRepository.save(Course.create("강좌A", "강사A", 10, null, null, 1L));
+        courseJpaRepository.save(Course.create("강좌B", "강사B", 20, null, null, 1L));
 
         // when
         var courses = courseJpaRepository.findAll();

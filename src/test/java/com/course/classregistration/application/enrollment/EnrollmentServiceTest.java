@@ -51,7 +51,7 @@ class EnrollmentServiceTest {
 
     @BeforeEach
     void setUp() {
-        course = Course.create("스프링 부트 입문", "김강사", 30, null, null);
+        course = Course.create("스프링 부트 입문", "김강사", 30, null, null, 1L);
         request = EnrollmentRequest.builder().courseId(COURSE_ID).build();
         // cancelPeriodHours 기본값 주입 (application.yaml 없이 단위 테스트 실행)
         ReflectionTestUtils.setField(enrollmentService, "cancelPeriodHours", 24);
@@ -113,7 +113,7 @@ class EnrollmentServiceTest {
     @DisplayName("수강 신청 실패 - 정원이 가득 찬 강좌 신청 시 COURSE_FULL 예외")
     void enroll_courseFull() {
         // given
-        Course fullCourse = Course.create("정원 초과 강좌", "박강사", 1, null, null);
+        Course fullCourse = Course.create("정원 초과 강좌", "박강사", 1, null, null, 1L);
         fullCourse.increaseEnrollmentCount(); // 정원 1명 → 이미 1명 신청됨
 
         given(courseRepository.findByIdWithLock(COURSE_ID)).willReturn(Optional.of(fullCourse));
