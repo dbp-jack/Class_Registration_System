@@ -11,9 +11,12 @@ import com.course.classregistration.global.common.PageResponse;
 import com.course.classregistration.global.exception.BusinessException;
 import com.course.classregistration.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +25,13 @@ public class EnrollmentService {
 
     private final EnrollmentRepository enrollmentRepository;
     private final CourseRepository courseRepository;
+
+    /**
+     * 수강 취소 가능 기간 (application.yaml에서 주입)
+     * 코드 변경 없이 정책 변경이 가능하도록 외부 설정값으로 관리.
+     */
+    @Value("${enrollment.cancel-period-hours:24}")
+    private int cancelPeriodHours;
 
     /**
      * 수강 신청
@@ -69,8 +79,9 @@ public class EnrollmentService {
      * 1. 수강 신청 내역 조회
      * 2. 본인 확인
      * 3. 활성 상태 확인 (이미 취소된 경우 예외)
-     * 4. 비관적 락으로 강좌 조회 → 카운터 감소
-     * 5. 상태를 CANCELLED로 변경
+     * 4. 취소 가능 기간 검증 (신청 후 cancelPeriodHours 시간 이내)
+     * 5. 비관적 락으로 강좌 조회 → 카운터 감소
+     * 6. 상태를 CANCELLED로 변경
      */
     @Transactional
     public void cancel(Long userId, Long enrollmentId) {
@@ -88,12 +99,18 @@ public class EnrollmentService {
             throw new BusinessException(ErrorCode.ENROLLMENT_NOT_FOUND);
         }
 
-        // 4. 비관적 락으로 강좌 조회 → 카운터 감소
+        // 4. 취소 가능 기간 검증 (신청 후 N시간 이내)
+        LocalDateTime cancelDeadline = enrollment.getCreatedAt().plusHours(cancelPeriodHours);
+        if (LocalDateTime.now().isAfter(cancelDeadline)) {
+            throw new BusinessException(ErrorCode.CANCEL_PERIOD_EXPIRED);
+        }
+
+        // 5. 비관적 락으로 강좌 조회 → 카운터 감소
         Course course = courseRepository.findByIdWithLock(enrollment.getCourseId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.COURSE_NOT_FOUND));
         course.decreaseEnrollmentCount();
 
-        // 5. 상태 변경
+        // 6. 상태 변경
         enrollment.cancel();
     }
 
