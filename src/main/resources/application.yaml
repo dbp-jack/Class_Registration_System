@@ -24,6 +24,9 @@ spring:
 server:
   port: 8080
 
+enrollment:
+  cancel-period-hours: 24  # 수강 취소 가능 기간 (신청 후 N시간 이내)
+
 springdoc:
   api-docs:
     path: /api-docs

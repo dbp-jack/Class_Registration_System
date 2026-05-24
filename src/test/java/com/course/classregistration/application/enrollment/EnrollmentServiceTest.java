@@ -20,7 +20,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -51,6 +53,8 @@ class EnrollmentServiceTest {
     void setUp() {
         course = Course.create("스프링 부트 입문", "김강사", 30, null, null);
         request = EnrollmentRequest.builder().courseId(COURSE_ID).build();
+        // cancelPeriodHours 기본값 주입 (application.yaml 없이 단위 테스트 실행)
+        ReflectionTestUtils.setField(enrollmentService, "cancelPeriodHours", 24);
     }
 
     // ── enroll ────────────────────────────────────────────────────────────────
@@ -126,20 +130,43 @@ class EnrollmentServiceTest {
     // ── cancel ────────────────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("수강 취소 성공 - 본인의 수강 신청을 정상 취소한다")
+    @DisplayName("수강 취소 성공 - 취소 가능 기간(24h) 이내에 본인이 취소하면 성공한다")
     void cancel_success() {
         // given
         Enrollment enrollment = Enrollment.create(COURSE_ID, USER_ID);
+        // createdAt을 1시간 전으로 설정 (24시간 이내 → 취소 가능)
+        ReflectionTestUtils.setField(enrollment, "createdAt", LocalDateTime.now().minusHours(1));
+
         given(enrollmentRepository.findById(1L)).willReturn(Optional.of(enrollment));
         given(courseRepository.findByIdWithLock(COURSE_ID)).willReturn(Optional.of(course));
-        course.increaseEnrollmentCount(); // 카운터 1로 세팅
+        course.increaseEnrollmentCount();
 
         // when
         enrollmentService.cancel(USER_ID, 1L);
 
         // then
         assertThat(enrollment.isCancelled()).isTrue();
-        assertThat(course.getCurrentEnrollmentCount()).isZero(); // 카운터 감소 확인
+        assertThat(course.getCurrentEnrollmentCount()).isZero();
+    }
+
+    @Test
+    @DisplayName("수강 취소 실패 - 취소 가능 기간(24h) 초과 시 CANCEL_PERIOD_EXPIRED 예외")
+    void cancel_periodExpired() {
+        // given
+        Enrollment enrollment = Enrollment.create(COURSE_ID, USER_ID);
+        // createdAt을 25시간 전으로 설정 (24시간 초과 → 취소 불가)
+        ReflectionTestUtils.setField(enrollment, "createdAt", LocalDateTime.now().minusHours(25));
+
+        given(enrollmentRepository.findById(1L)).willReturn(Optional.of(enrollment));
+
+        // when & then
+        assertThatThrownBy(() -> enrollmentService.cancel(USER_ID, 1L))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.CANCEL_PERIOD_EXPIRED));
+
+        // 기간 만료 시 강좌 카운터는 변경되지 않아야 함
+        verify(courseRepository, never()).findByIdWithLock(any());
     }
 
     @Test
