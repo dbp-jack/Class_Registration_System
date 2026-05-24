@@ -23,6 +23,7 @@ public enum ErrorCode {
     // ── User ────────────────────────────────────────────────────────────────
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."),
     INVALID_USER_HEADER(HttpStatus.BAD_REQUEST, "X-User-Id 헤더가 누락되었거나 올바르지 않습니다."),
+    FORBIDDEN_COURSE_ACCESS(HttpStatus.FORBIDDEN, "강좌 개설자만 수강생 목록을 조회할 수 있습니다."),
 
     // ── Common ──────────────────────────────────────────────────────────────
     INVALID_INPUT(HttpStatus.BAD_REQUEST, "입력값이 올바르지 않습니다."),

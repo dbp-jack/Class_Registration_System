@@ -16,6 +16,7 @@ public class CourseResponse {
     private int maxCapacity;
     private int currentEnrollmentCount;
     private int remainingCapacity;
+    private Long createdBy;
     private LocalDateTime enrollmentStartAt;
     private LocalDateTime enrollmentEndAt;
     private LocalDateTime createdAt;
@@ -28,6 +29,7 @@ public class CourseResponse {
                 course.getMaxCapacity(),
                 course.getCurrentEnrollmentCount(),
                 course.remainingCapacity(),
+                course.getCreatedBy(),
                 course.getEnrollmentStartAt(),
                 course.getEnrollmentEndAt(),
                 course.getCreatedAt()
