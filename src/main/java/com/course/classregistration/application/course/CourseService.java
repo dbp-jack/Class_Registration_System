@@ -4,14 +4,13 @@ import com.course.classregistration.application.course.dto.CourseCreateRequest;
 import com.course.classregistration.application.course.dto.CourseResponse;
 import com.course.classregistration.domain.course.Course;
 import com.course.classregistration.domain.course.CourseRepository;
+import com.course.classregistration.global.common.PageResponse;
 import com.course.classregistration.global.exception.BusinessException;
 import com.course.classregistration.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -45,11 +44,12 @@ public class CourseService {
     }
 
     /**
-     * 강좌 목록 조회
+     * 강좌 목록 페이지네이션 조회
+     * 기본값: page=0, size=10, sort=createdAt DESC
      */
-    public List<CourseResponse> getCourses() {
-        return courseRepository.findAll().stream()
-                .map(CourseResponse::from)
-                .collect(Collectors.toList());
+    public PageResponse<CourseResponse> getCourses(Pageable pageable) {
+        return PageResponse.from(
+                courseRepository.findAll(pageable).map(CourseResponse::from)
+        );
     }
 }

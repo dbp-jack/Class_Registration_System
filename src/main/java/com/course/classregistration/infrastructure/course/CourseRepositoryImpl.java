@@ -5,7 +5,9 @@ import com.course.classregistration.domain.course.CourseRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import java.util.Optional;
 
 /**
@@ -36,7 +38,7 @@ public class CourseRepositoryImpl implements CourseRepository {
     }
 
     @Override
-    public List<Course> findAll() {
-        return courseJpaRepository.findAll();
+    public Page<Course> findAll(Pageable pageable) {
+        return courseJpaRepository.findAll(pageable);
     }
 }

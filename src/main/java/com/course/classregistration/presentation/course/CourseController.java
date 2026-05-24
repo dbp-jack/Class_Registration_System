@@ -4,15 +4,17 @@ import com.course.classregistration.application.course.CourseService;
 import com.course.classregistration.application.course.dto.CourseCreateRequest;
 import com.course.classregistration.application.course.dto.CourseResponse;
 import com.course.classregistration.global.common.ApiResponse;
+import com.course.classregistration.global.common.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/courses")
@@ -47,12 +49,13 @@ public class CourseController {
     }
 
     /**
-     * 강좌 목록 조회
-     * GET /api/courses
+     * 강좌 목록 페이지네이션 조회
+     * GET /api/courses?page=0&size=10&sort=createdAt,desc
      */
     @GetMapping
-    @Operation(summary = "강좌 목록 조회", description = "전체 강좌 목록을 조회합니다.")
-    public ResponseEntity<ApiResponse<List<CourseResponse>>> getCourses() {
-        return ResponseEntity.ok(ApiResponse.ok(courseService.getCourses()));
+    @Operation(summary = "강좌 목록 조회", description = "강좌 목록을 페이지네이션으로 조회합니다.")
+    public ResponseEntity<ApiResponse<PageResponse<CourseResponse>>> getCourses(
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.ok(courseService.getCourses(pageable)));
     }
 }
