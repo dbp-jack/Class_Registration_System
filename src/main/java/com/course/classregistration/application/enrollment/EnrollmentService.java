@@ -7,14 +7,13 @@ import com.course.classregistration.domain.course.CourseRepository;
 import com.course.classregistration.domain.enrollment.Enrollment;
 import com.course.classregistration.domain.enrollment.EnrollmentRepository;
 import com.course.classregistration.domain.enrollment.EnrollmentStatus;
+import com.course.classregistration.global.common.PageResponse;
 import com.course.classregistration.global.exception.BusinessException;
 import com.course.classregistration.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -99,19 +98,19 @@ public class EnrollmentService {
     }
 
     /**
-     * 내 수강 신청 목록 조회
+     * 내 수강 신청 목록 페이지네이션 조회
      *
      * TODO: N+1 문제 존재 - 각 Enrollment마다 Course 조회 쿼리 발생
      *       Phase 6 리팩토링에서 JPQL fetch join으로 개선 예정
      */
-    public List<EnrollmentResponse> getMyEnrollments(Long userId) {
-        return enrollmentRepository.findByUserIdAndStatus(userId, EnrollmentStatus.ENROLLED)
-                .stream()
-                .map(enrollment -> {
-                    Course course = courseRepository.findById(enrollment.getCourseId())
-                            .orElseThrow(() -> new BusinessException(ErrorCode.COURSE_NOT_FOUND));
-                    return EnrollmentResponse.from(enrollment, course);
-                })
-                .collect(Collectors.toList());
+    public PageResponse<EnrollmentResponse> getMyEnrollments(Long userId, Pageable pageable) {
+        return PageResponse.from(
+                enrollmentRepository.findByUserIdAndStatus(userId, EnrollmentStatus.ENROLLED, pageable)
+                        .map(enrollment -> {
+                            Course course = courseRepository.findById(enrollment.getCourseId())
+                                    .orElseThrow(() -> new BusinessException(ErrorCode.COURSE_NOT_FOUND));
+                            return EnrollmentResponse.from(enrollment, course);
+                        })
+        );
     }
 }

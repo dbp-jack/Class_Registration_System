@@ -4,15 +4,17 @@ import com.course.classregistration.application.enrollment.EnrollmentService;
 import com.course.classregistration.application.enrollment.dto.EnrollmentRequest;
 import com.course.classregistration.application.enrollment.dto.EnrollmentResponse;
 import com.course.classregistration.global.common.ApiResponse;
+import com.course.classregistration.global.common.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/enrollments")
@@ -52,14 +54,15 @@ public class EnrollmentController {
     }
 
     /**
-     * 내 수강 신청 목록 조회
-     * GET /api/enrollments/me
+     * 내 수강 신청 목록 페이지네이션 조회
+     * GET /api/enrollments/me?page=0&size=10&sort=createdAt,desc
      * Header: X-User-Id (조회 대상 사용자 ID)
      */
     @GetMapping("/me")
-    @Operation(summary = "내 수강 신청 목록", description = "현재 사용자의 수강 신청 목록을 조회합니다.")
-    public ResponseEntity<ApiResponse<List<EnrollmentResponse>>> getMyEnrollments(
-            @RequestHeader("X-User-Id") Long userId) {
-        return ResponseEntity.ok(ApiResponse.ok(enrollmentService.getMyEnrollments(userId)));
+    @Operation(summary = "내 수강 신청 목록", description = "현재 사용자의 수강 신청 목록을 페이지네이션으로 조회합니다.")
+    public ResponseEntity<ApiResponse<PageResponse<EnrollmentResponse>>> getMyEnrollments(
+            @RequestHeader("X-User-Id") Long userId,
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.ok(enrollmentService.getMyEnrollments(userId, pageable)));
     }
 }

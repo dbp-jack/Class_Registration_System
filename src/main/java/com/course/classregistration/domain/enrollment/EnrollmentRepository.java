@@ -1,5 +1,8 @@
 package com.course.classregistration.domain.enrollment;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -20,9 +23,14 @@ public interface EnrollmentRepository {
     boolean existsByCourseIdAndUserIdAndStatus(Long courseId, Long userId, EnrollmentStatus status);
 
     /**
-     * 특정 사용자의 수강 신청 목록 조회 (상태 필터)
+     * 특정 사용자의 수강 신청 목록 조회 (상태 필터) - 전체 리스트
      */
     List<Enrollment> findByUserIdAndStatus(Long userId, EnrollmentStatus status);
+
+    /**
+     * 특정 사용자의 수강 신청 목록 조회 (상태 필터) - 페이지네이션
+     */
+    Page<Enrollment> findByUserIdAndStatus(Long userId, EnrollmentStatus status, Pageable pageable);
 
     /**
      * 특정 강좌의 수강 신청 목록 조회 (상태 필터)
