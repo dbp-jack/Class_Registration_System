@@ -7,6 +7,7 @@ import com.course.classregistration.domain.course.CourseRepository;
 import com.course.classregistration.domain.enrollment.Enrollment;
 import com.course.classregistration.domain.enrollment.EnrollmentRepository;
 import com.course.classregistration.domain.enrollment.EnrollmentStatus;
+import com.course.classregistration.global.common.PageResponse;
 import com.course.classregistration.global.exception.BusinessException;
 import com.course.classregistration.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,6 +17,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
@@ -169,20 +173,22 @@ class EnrollmentServiceTest {
     // ── getMyEnrollments ──────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("내 수강 신청 목록 조회 - 수강 중인 목록만 반환한다")
+    @DisplayName("내 수강 신청 목록 페이지네이션 조회 - 수강 중인 목록만 PageResponse로 반환한다")
     void getMyEnrollments_success() {
         // given
+        Pageable pageable = PageRequest.of(0, 10);
         Enrollment enrollment = Enrollment.create(COURSE_ID, USER_ID);
-        given(enrollmentRepository.findByUserIdAndStatus(USER_ID, EnrollmentStatus.ENROLLED))
-                .willReturn(List.of(enrollment));
+        given(enrollmentRepository.findByUserIdAndStatus(USER_ID, EnrollmentStatus.ENROLLED, pageable))
+                .willReturn(new PageImpl<>(List.of(enrollment), pageable, 1));
         given(courseRepository.findById(COURSE_ID)).willReturn(Optional.of(course));
 
         // when
-        List<EnrollmentResponse> responses = enrollmentService.getMyEnrollments(USER_ID);
+        PageResponse<EnrollmentResponse> response = enrollmentService.getMyEnrollments(USER_ID, pageable);
 
         // then
-        assertThat(responses).hasSize(1);
-        assertThat(responses.get(0).getCourseTitle()).isEqualTo("스프링 부트 입문");
-        assertThat(responses.get(0).getStatus()).isEqualTo(EnrollmentStatus.ENROLLED);
+        assertThat(response.getContent()).hasSize(1);
+        assertThat(response.getTotalElements()).isEqualTo(1);
+        assertThat(response.getContent().get(0).getCourseTitle()).isEqualTo("스프링 부트 입문");
+        assertThat(response.getContent().get(0).getStatus()).isEqualTo(EnrollmentStatus.ENROLLED);
     }
 }

@@ -6,6 +6,9 @@ import com.course.classregistration.domain.enrollment.EnrollmentStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -33,6 +36,11 @@ public class EnrollmentRepositoryImpl implements EnrollmentRepository {
     @Override
     public List<Enrollment> findByUserIdAndStatus(Long userId, EnrollmentStatus status) {
         return enrollmentJpaRepository.findByUserIdAndStatus(userId, status);
+    }
+
+    @Override
+    public Page<Enrollment> findByUserIdAndStatus(Long userId, EnrollmentStatus status, Pageable pageable) {
+        return enrollmentJpaRepository.findByUserIdAndStatus(userId, status, pageable);
     }
 
     @Override

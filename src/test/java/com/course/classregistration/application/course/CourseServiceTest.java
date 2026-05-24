@@ -4,6 +4,7 @@ import com.course.classregistration.application.course.dto.CourseCreateRequest;
 import com.course.classregistration.application.course.dto.CourseResponse;
 import com.course.classregistration.domain.course.Course;
 import com.course.classregistration.domain.course.CourseRepository;
+import com.course.classregistration.global.common.PageResponse;
 import com.course.classregistration.global.exception.BusinessException;
 import com.course.classregistration.global.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
@@ -12,6 +13,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
@@ -94,34 +98,40 @@ class CourseServiceTest {
     // ── getCourses ────────────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("강좌 목록 조회 성공 - 전체 강좌 목록을 CourseResponse 리스트로 반환한다")
+    @DisplayName("강좌 목록 페이지네이션 조회 성공 - PageResponse로 반환한다")
     void getCourses_success() {
         // given
+        Pageable pageable = PageRequest.of(0, 10);
         List<Course> courses = List.of(
                 Course.create("강좌A", "강사A", 10, null, null),
                 Course.create("강좌B", "강사B", 20, null, null)
         );
-        given(courseRepository.findAll()).willReturn(courses);
+        given(courseRepository.findAll(pageable)).willReturn(new PageImpl<>(courses, pageable, 2));
 
         // when
-        List<CourseResponse> responses = courseService.getCourses();
+        PageResponse<CourseResponse> response = courseService.getCourses(pageable);
 
         // then
-        assertThat(responses).hasSize(2);
-        assertThat(responses).extracting(CourseResponse::getTitle)
+        assertThat(response.getContent()).hasSize(2);
+        assertThat(response.getTotalElements()).isEqualTo(2);
+        assertThat(response.getTotalPages()).isEqualTo(1);
+        assertThat(response.isHasNext()).isFalse();
+        assertThat(response.getContent()).extracting(CourseResponse::getTitle)
                 .containsExactly("강좌A", "강좌B");
     }
 
     @Test
-    @DisplayName("강좌 목록 조회 - 강좌가 없으면 빈 리스트를 반환한다")
+    @DisplayName("강좌 목록 조회 - 강좌가 없으면 빈 PageResponse를 반환한다")
     void getCourses_empty() {
         // given
-        given(courseRepository.findAll()).willReturn(List.of());
+        Pageable pageable = PageRequest.of(0, 10);
+        given(courseRepository.findAll(pageable)).willReturn(new PageImpl<>(List.of(), pageable, 0));
 
         // when
-        List<CourseResponse> responses = courseService.getCourses();
+        PageResponse<CourseResponse> response = courseService.getCourses(pageable);
 
         // then
-        assertThat(responses).isEmpty();
+        assertThat(response.getContent()).isEmpty();
+        assertThat(response.getTotalElements()).isZero();
     }
 }
